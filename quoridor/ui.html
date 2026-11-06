@@ -1,0 +1,1129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quoridor</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f4f1ea;
+        --panel: #ffffff;
+        --text: #2a2622;
+        --muted: #7a7168;
+        --line: #e2ddd3;
+        --board: #5b4330;
+        --cell: #d8b98c;
+        --cell-hover: #e4c89e;
+        --wall: #f6eedc;
+        --p0: #2f6fde;
+        --p1: #d6453a;
+        --accent: #2f6fde;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1c1a18;
+          --panel: #262320;
+          --text: #ece6dc;
+          --muted: #a39a8f;
+          --line: #3a3530;
+          --board: #3d2d20;
+          --cell: #b8966a;
+          --cell-hover: #c9a77a;
+          --accent: #5b8fef;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.45 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        display: flex;
+        gap: 24px;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 24px 16px;
+        flex-wrap: wrap;
+      }
+      #board-wrap {
+        flex: 0 1 720px;
+        min-width: 0;
+      }
+      aside.moves-panel {
+        flex: 0 0 200px;
+        width: 200px;
+        order: -1;
+      }
+      aside.moves-panel h2 {
+        margin-top: 0;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        user-select: none;
+      }
+      aside {
+        flex: 0 0 320px;
+        width: 320px;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 12px;
+      }
+      h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 18px 0 8px;
+      }
+      .status {
+        font-size: 17px;
+        font-weight: 600;
+        min-height: 26px;
+      }
+      .info {
+        color: var(--muted);
+        font-size: 13px;
+        min-height: 19px;
+      }
+      .players {
+        display: grid;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      @property --b {
+        syntax: "<number>";
+        inherits: true;
+        initial-value: 0.5;
+      }
+      @property --r {
+        syntax: "<number>";
+        inherits: true;
+        initial-value: 0.5;
+      }
+      .winbar {
+        --b: 0.5;
+        --r: 0.5;
+        position: relative;
+        height: 14px;
+        border-radius: 7px;
+        overflow: hidden;
+        margin-top: 14px;
+        background: #fff;
+        transition:
+          --b 0.4s ease,
+          --r 0.4s ease;
+      }
+      .winbar.instant {
+        transition: none;
+      }
+      .winbar div {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+      }
+      #seg-blue {
+        left: 0;
+        width: calc(var(--b) * 100%);
+      }
+      #seg-red {
+        right: 0;
+        width: calc(var(--r) * 100%);
+      }
+      #seg-mid {
+        background: #8a4fc4;
+        z-index: 1;
+        left: calc((1 - var(--r)) * 100%);
+        width: max(0%, calc((var(--b) + var(--r) - 1) * 100%));
+      }
+      .winbar-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-top: 4px;
+        font-variant-numeric: tabular-nums;
+      }
+      .player {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+      .player.turn {
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+      .dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .player .walls {
+        margin-left: auto;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin: 8px 0 3px;
+      }
+      select,
+      input {
+        width: 100%;
+        padding: 7px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+      }
+      .buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      button {
+        flex: 1 1 auto;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      #moves {
+        max-height: 640px;
+        overflow-y: auto;
+        font:
+          13px/1.6 ui-monospace,
+          monospace;
+        display: grid;
+        grid-template-columns: 2.5em 1fr 1fr;
+      }
+      #moves span:nth-child(3n + 1) {
+        color: var(--muted);
+      }
+      #moves {
+        scrollbar-width: thin;
+        scrollbar-color: var(--line) transparent;
+        padding-right: 4px;
+      }
+      #moves:hover {
+        scrollbar-color: var(--muted) transparent;
+      }
+      #moves::-webkit-scrollbar {
+        width: 6px;
+      }
+      #moves::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #moves::-webkit-scrollbar-thumb {
+        background: var(--line);
+        border-radius: 3px;
+      }
+      #moves:hover::-webkit-scrollbar-thumb {
+        background: var(--muted);
+      }
+      #moves .move {
+        cursor: pointer;
+        border-radius: 4px;
+        padding: 0 4px;
+      }
+      #moves .move:hover {
+        background: var(--cell-hover);
+      }
+      #moves .move.current {
+        background: var(--accent);
+        color: #fff;
+      }
+      .nav {
+        margin: 0 0 10px;
+      }
+      .nav button {
+        flex: 1;
+        min-width: 0;
+        padding: 6px 4px;
+        font-size: 13px;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 10px;
+      }
+      .error {
+        color: var(--p1);
+        font-size: 13px;
+        min-height: 18px;
+      }
+      .cell {
+        fill: var(--cell);
+      }
+      .cell.target {
+        cursor: pointer;
+      }
+      .cell.target:hover {
+        fill: var(--cell-hover);
+      }
+      .label {
+        fill: rgba(255, 255, 255, 0.6);
+        font:
+          12px system-ui,
+          sans-serif;
+      }
+      #inspect {
+        flex: 1 1 100%;
+        max-width: 1100px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 18px;
+      }
+      #inspect header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      #inspect header span {
+        color: var(--muted);
+        font-size: 13px;
+        flex: 1;
+      }
+      #inspect header button {
+        flex: none;
+      }
+      #inspect img {
+        width: 100%;
+        height: auto;
+        display: block;
+        background: #fff;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="board-wrap"><svg id="board"></svg></div>
+      <aside>
+        <h1>Quoridor</h1>
+        <div class="status" id="status"></div>
+        <div class="info" id="info"></div>
+        <div class="players" id="players"></div>
+        <div
+          id="win"
+          hidden
+          title="Each bot's latest view. Purple: both claim it. White: neither does."
+        >
+          <div class="winbar">
+            <div id="seg-blue" style="background: var(--p0)"></div>
+            <div id="seg-mid"></div>
+            <div id="seg-red" style="background: var(--p1)"></div>
+          </div>
+          <div class="winbar-label">
+            <span id="win-blue-label"></span><span id="win-red-label"></span>
+          </div>
+        </div>
+
+        <h2>New game</h2>
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="0">You play blue (moves first)</option>
+          <option value="1">You play red</option>
+          <option value="bots">Bot vs bot</option>
+          <option value="hotseat">Two players</option>
+        </select>
+        <label for="bot" id="bot-label">Opponent</label>
+        <select id="bot"></select>
+        <label for="strength" id="strength-label">Time per move (ms)</label>
+        <input id="strength" type="number" min="1" />
+        <div id="bot2-wrap" hidden>
+          <label for="bot2">Red bot</label>
+          <select id="bot2"></select>
+          <label for="strength2" id="strength2-label">Time per move (ms)</label>
+          <input id="strength2" type="number" min="1" />
+        </div>
+        <div class="row">
+          <div>
+            <label for="width">Width</label
+            ><input id="width" type="number" min="3" max="9" value="5" />
+          </div>
+          <div>
+            <label for="height">Height</label
+            ><input id="height" type="number" min="3" max="9" value="5" />
+          </div>
+          <div>
+            <label for="walls">Walls</label
+            ><input id="walls" type="number" min="0" max="20" value="3" />
+          </div>
+        </div>
+        <div class="buttons">
+          <button class="primary" id="new">New game</button>
+          <button id="undo">Undo</button>
+          <button id="flip">Flip</button>
+        </div>
+        <div class="buttons">
+          <button id="pause">Pause</button>
+          <button id="resign">Resign</button>
+          <button id="inspect-btn">Inspect position</button>
+        </div>
+        <div class="error" id="error"></div>
+
+        <p class="hint">
+          Click a highlighted square to move. Hover a gap between squares to
+          preview a wall, click to place it. Over a crossing, press R to switch
+          between horizontal and vertical. Back / Forward (or the arrow keys)
+          and clicking a move show earlier positions; Undo takes back the last
+          move.
+        </p>
+      </aside>
+      <aside class="moves-panel">
+        <h2>Moves</h2>
+        <div class="buttons nav">
+          <button id="back" title="Previous position (Left arrow)">
+            &#9664; Back
+          </button>
+          <button id="forward" title="Next position (Right arrow)">
+            Forward &#9654;
+          </button>
+        </div>
+        <div id="moves"></div>
+      </aside>
+      <section id="inspect" hidden>
+        <header>
+          <strong>What the net sees</strong><span id="inspect-caption"></span
+          ><button id="inspect-close">Close</button>
+        </header>
+        <img id="inspect-img" alt="Net analysis of the current position" />
+      </section>
+    </main>
+    <script>
+      const C = 56,
+        G = 12,
+        PAD = 28,
+        P = C + G;
+      const NS = "http://www.w3.org/2000/svg";
+      const svg = document.getElementById("board");
+      let winKey = "",
+        state = null,
+        nets = [],
+        flipped = false,
+        orient = "h",
+        preview = null,
+        busy = false,
+        token = 0,
+        mouse = null,
+        paused = false,
+        inspecting = false,
+        defaultSims = 512,
+        viewState = null,
+        drawn = null;
+      const MOTION_MS = 130;
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      );
+
+      const $ = (id) => document.getElementById(id);
+      const color = (side) => (side === 0 ? "var(--p0)" : "var(--p1)");
+      const name = (side) => (side === 0 ? "Blue" : "Red");
+
+      async function api(path, body) {
+        const res = await fetch(
+          path,
+          body === undefined
+            ? {}
+            : {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+              },
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        return data;
+      }
+
+      function el(tag, attrs, parent) {
+        const e = document.createElementNS(NS, tag);
+        for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+        if (parent) parent.appendChild(e);
+        return e;
+      }
+
+      const dispCol = (c) => (flipped ? state.width - 1 - c : c);
+      const dispRow = (r) => (flipped ? r : state.height - 1 - r);
+      const logCol = (d) => (flipped ? state.width - 1 - d : d);
+      const logRow = (d) => (flipped ? d : state.height - 1 - d);
+      const cellX = (c) => PAD + dispCol(c) * P;
+      const cellY = (r) => PAD + dispRow(r) * P;
+
+      function wallRect(kind, r, c) {
+        if (kind === "h") {
+          return {
+            x: Math.min(cellX(c), cellX(c + 1)),
+            y: Math.max(cellY(r), cellY(r + 1)) - G,
+            width: 2 * C + G,
+            height: G,
+          };
+        }
+        return {
+          x: Math.min(cellX(c), cellX(c + 1)) + C,
+          y: Math.min(cellY(r), cellY(r + 1)),
+          width: G,
+          height: 2 * C + G,
+        };
+      }
+
+      const cur = () => viewState || state;
+      const netLabel = (path) =>
+        path.replace(/^runs\//, "").replace(/\.pt$/, "");
+      const livePly = () => state.moves.length;
+      const shownPly = () => (viewState ? viewState.view : livePly());
+
+      function legalMap() {
+        const m = new Map();
+        for (const [a, kind, r, c] of state.legal) m.set(`${kind}${r},${c}`, a);
+        return m;
+      }
+
+      const humanTurn = () =>
+        state &&
+        !viewState &&
+        !state.terminal &&
+        state.humans.includes(state.side) &&
+        !busy;
+
+      function render() {
+        const shown = cur();
+        const W = shown.width,
+          H = shown.height;
+        const size = { w: 2 * PAD + W * P - G, h: 2 * PAD + H * P - G };
+        svg.setAttribute("viewBox", `0 0 ${size.w} ${size.h}`);
+        svg.replaceChildren();
+        el(
+          "rect",
+          {
+            x: 0,
+            y: 0,
+            width: size.w,
+            height: size.h,
+            rx: 14,
+            fill: "var(--board)",
+          },
+          svg,
+        );
+        for (let c = 0; c < W; c++) {
+          const t = el(
+            "text",
+            {
+              x: cellX(c) + C / 2,
+              y: size.h - 9,
+              "text-anchor": "middle",
+              class: "label",
+            },
+            svg,
+          );
+          t.textContent = String.fromCharCode(97 + c);
+        }
+        for (let r = 0; r < H; r++) {
+          const t = el(
+            "text",
+            {
+              x: PAD / 2,
+              y: cellY(r) + C / 2 + 4,
+              "text-anchor": "middle",
+              class: "label",
+            },
+            svg,
+          );
+          t.textContent = r + 1;
+        }
+        const legal = legalMap();
+        const mine = humanTurn();
+        for (let r = 0; r < H; r++) {
+          const goal = r === 0 ? 1 : r === H - 1 ? 0 : -1;
+          for (let c = 0; c < W; c++) {
+            const a = legal.get(`p${r},${c}`);
+            const target = mine && a !== undefined;
+            const rect = el(
+              "rect",
+              {
+                x: cellX(c),
+                y: cellY(r),
+                width: C,
+                height: C,
+                rx: 6,
+                class: target ? "cell target" : "cell",
+              },
+              svg,
+            );
+            if (goal >= 0) {
+              el(
+                "rect",
+                {
+                  x: cellX(c),
+                  y: cellY(r) + (dispRow(r) === 0 ? 0 : C - 4),
+                  width: C,
+                  height: 4,
+                  fill: color(goal),
+                  opacity: 0.55,
+                  "pointer-events": "none",
+                },
+                svg,
+              );
+            }
+            if (target) {
+              el(
+                "circle",
+                {
+                  cx: cellX(c) + C / 2,
+                  cy: cellY(r) + C / 2,
+                  r: 7,
+                  fill: color(shown.side),
+                  opacity: 0.45,
+                  "pointer-events": "none",
+                },
+                svg,
+              );
+              rect.addEventListener("click", () => play(a));
+            }
+          }
+        }
+        const last = shown.last;
+        if (last && last[0] === "p") {
+          el(
+            "rect",
+            {
+              x: cellX(last[2]) + 2,
+              y: cellY(last[1]) + 2,
+              width: C - 4,
+              height: C - 4,
+              rx: 5,
+              fill: "none",
+              stroke: "#fff",
+              "stroke-opacity": 0.7,
+              "stroke-width": 2,
+              "pointer-events": "none",
+            },
+            svg,
+          );
+        }
+        const animate =
+          drawn &&
+          drawn.flipped === flipped &&
+          drawn.W === W &&
+          drawn.H === H &&
+          !reduceMotion.matches;
+        const wallKeys = new Set();
+        for (const [kind, r, c] of shown.walls) {
+          const isLast =
+            last && last[0] === kind && last[1] === r && last[2] === c;
+          const rect = el(
+            "rect",
+            {
+              ...wallRect(kind, r, c),
+              rx: 3,
+              fill: "var(--wall)",
+              stroke: isLast ? "#fff" : "none",
+              "stroke-width": 2,
+              "pointer-events": "none",
+            },
+            svg,
+          );
+          const key = `${kind}${r},${c}`;
+          wallKeys.add(key);
+          if (animate && !drawn.walls.has(key)) {
+            rect.style.transformBox = "fill-box";
+            rect.style.transformOrigin = "center";
+            rect.animate(
+              [
+                { opacity: 0, transform: "scale(1.35)" },
+                { opacity: 1, transform: "scale(1)" },
+              ],
+              { duration: MOTION_MS, easing: "ease-out" },
+            );
+          }
+        }
+        shown.pawns.forEach(([r, c], side) => {
+          const pawn = el(
+            "circle",
+            {
+              cx: cellX(c) + C / 2,
+              cy: cellY(r) + C / 2,
+              r: C * 0.34,
+              fill: color(side),
+              stroke: "rgba(0,0,0,.35)",
+              "stroke-width": 2,
+              "pointer-events": "none",
+            },
+            svg,
+          );
+          const before = animate ? drawn.pawns[side] : null;
+          if (before && (before[0] !== r || before[1] !== c)) {
+            const dx = cellX(before[1]) - cellX(c),
+              dy = cellY(before[0]) - cellY(r);
+            pawn.animate(
+              [
+                { transform: `translate(${dx}px, ${dy}px)` },
+                { transform: "translate(0, 0)" },
+              ],
+              { duration: MOTION_MS, easing: "ease-in-out" },
+            );
+          }
+        });
+        drawn = {
+          pawns: shown.pawns.map((p) => [...p]),
+          walls: wallKeys,
+          flipped,
+          W,
+          H,
+        };
+        preview = null;
+        if (mouse) hover(mouse);
+        renderPanel();
+      }
+
+      function renderPanel() {
+        const s = cur();
+        let status;
+        if (viewState)
+          status = `Viewing move ${viewState.view} of ${livePly()}`;
+        else if (s.terminal && s.resigned != null)
+          status = `${name(s.resigned)} resigned, ${name(s.winner)} wins`;
+        else if (s.terminal)
+          status =
+            s.winner < 0 ? "Draw by move limit" : `${name(s.winner)} wins`;
+        else if (busy) status = `${name(s.side)} is thinking…`;
+        else
+          status = s.humans.includes(s.side)
+            ? s.humans.length === 2
+              ? `${name(s.side)} to move`
+              : "Your move"
+            : `${name(s.side)} to move`;
+        $("status").textContent = status;
+        $("info").textContent = s.info;
+        $("players").replaceChildren(
+          ...[0, 1].map((side) => {
+            const d = document.createElement("div");
+            d.className =
+              "player" + (!s.terminal && s.side === side ? " turn" : "");
+            const who = s.humans.includes(side)
+              ? s.humans.length === 2
+                ? "Player"
+                : "You"
+              : "Bot";
+            d.innerHTML = `<span class="dot" style="background:${color(side)}"></span><span>${name(side)} · ${who}</span><span class="walls">${s.walls_left[side]} walls</span>`;
+            return d;
+          }),
+        );
+        $("win").hidden = !s.win;
+        if (!s.win) winKey = "";
+        if (s.win) {
+          const views = s.win.views || [null, null];
+          const v0 = views[0] ?? views[1],
+            v1 = views[1] ?? views[0];
+          let b = v0,
+            r = 1 - v1;
+          if (s.terminal)
+            [b, r] =
+              s.winner < 0 ? [0.5, 0.5] : s.winner === 0 ? [1, 0] : [0, 1];
+          const key = `${views[0] != null}${views[1] != null}${s.terminal}`,
+            bar = $("seg-mid").parentElement;
+          bar.classList.toggle("instant", key !== winKey);
+          winKey = key;
+          bar.style.setProperty("--b", b);
+          bar.style.setProperty("--r", r);
+          void bar.offsetWidth;
+          bar.classList.remove("instant");
+          const pct = (v, own) =>
+            v === null || v === undefined ? "–" : `${Math.round(100 * own)}%`;
+          $("win-blue-label").textContent = s.terminal
+            ? `Blue ${Math.round(100 * b)}%`
+            : `Blue ${pct(views[0], b)}`;
+          $("win-red-label").textContent = s.terminal
+            ? `Red ${Math.round(100 * r)}%`
+            : `Red ${pct(views[1], r)}`;
+        }
+        const moves = $("moves"),
+          all = state.moves,
+          shown = shownPly() - 1;
+        moves.replaceChildren();
+        let current = null;
+        for (let i = 0; i < all.length; i += 2) {
+          const number = document.createElement("span");
+          number.textContent = `${i / 2 + 1}.`;
+          moves.appendChild(number);
+          for (const j of [i, i + 1]) {
+            const span = document.createElement("span");
+            if (j < all.length) {
+              span.textContent = all[j];
+              span.className = j === shown ? "move current" : "move";
+              span.addEventListener("click", () => goTo(j + 1));
+              if (j === shown) current = span;
+            }
+            moves.appendChild(span);
+          }
+        }
+        if (viewState && current) current.scrollIntoView({ block: "nearest" });
+        else if (!viewState) moves.scrollTop = moves.scrollHeight;
+        $("back").disabled = shownPly() === 0;
+        $("forward").disabled = !viewState;
+        $("undo").disabled = !state.can_undo || busy;
+        $("resign").disabled =
+          state.terminal || !state.humans.length || !!viewState;
+        const botsLeft = !state.terminal && state.humans.length < 2;
+        $("pause").disabled = !botsLeft;
+        $("pause").textContent = paused ? "Resume" : "Pause";
+        $("pause").title =
+          busy && !paused
+            ? "Stops after the move the bot is thinking about"
+            : "";
+        $("inspect-btn").disabled =
+          s.terminal || (busy && !viewState) || inspecting;
+        if (paused && !busy && !state.terminal && !viewState)
+          $("status").textContent = "Paused";
+      }
+
+      function svgPoint(evt) {
+        const pt = svg.createSVGPoint();
+        pt.x = evt.clientX;
+        pt.y = evt.clientY;
+        return pt.matrixTransform(svg.getScreenCTM().inverse());
+      }
+
+      function wallAt(p) {
+        const W = state.width,
+          H = state.height;
+        const lx = p.x - PAD,
+          ly = p.y - PAD;
+        if (lx < 0 || ly < 0 || lx > W * P - G || ly > H * P - G) return null;
+        const inV = lx % P >= C,
+          inH = ly % P >= C;
+        if (!inV && !inH) return null;
+        const kind = inV && inH ? orient : inH ? "h" : "v";
+        if (kind === "h") {
+          const j = Math.floor(ly / P);
+          const i = Math.min(Math.max(Math.round((lx + G / 2) / P), 1), W - 1);
+          return [
+            "h",
+            Math.min(logRow(j), logRow(j + 1)),
+            Math.min(logCol(i - 1), logCol(i)),
+          ];
+        }
+        const i = Math.floor(lx / P);
+        const j = Math.min(Math.max(Math.round((ly + G / 2) / P), 1), H - 1);
+        return [
+          "v",
+          Math.min(logRow(j - 1), logRow(j)),
+          Math.min(logCol(i), logCol(i + 1)),
+        ];
+      }
+
+      function hover(p) {
+        if (preview) preview.remove();
+        preview = null;
+        svg.style.cursor = "";
+        if (!humanTurn()) return;
+        const w = wallAt(p);
+        if (!w) return;
+        const a = legalMap().get(`${w[0]}${w[1]},${w[2]}`);
+        if (a === undefined) return;
+        preview = el(
+          "rect",
+          { ...wallRect(...w), rx: 3, fill: color(state.side), opacity: 0.7 },
+          svg,
+        );
+        preview.dataset.action = a;
+        svg.style.cursor = "pointer";
+      }
+
+      svg.addEventListener("mousemove", (evt) => {
+        mouse = svgPoint(evt);
+        hover(mouse);
+      });
+      svg.addEventListener("mouseleave", () => {
+        mouse = null;
+        if (preview) preview.remove();
+        preview = null;
+      });
+      svg.addEventListener("click", () => {
+        if (preview) play(Number(preview.dataset.action));
+      });
+      document.addEventListener("keydown", (evt) => {
+        if (evt.key === "r" || evt.key === "R") {
+          orient = orient === "h" ? "v" : "h";
+          if (mouse && state) hover(mouse);
+        }
+        const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(
+          document.activeElement?.tagName,
+        );
+        if (!typing && evt.key === "ArrowLeft") {
+          evt.preventDefault();
+          goTo(shownPly() - 1);
+        }
+        if (!typing && evt.key === "ArrowRight") {
+          evt.preventDefault();
+          goTo(shownPly() + 1);
+        }
+      });
+      $("back").addEventListener("click", () => goTo(shownPly() - 1));
+      $("forward").addEventListener("click", () => goTo(shownPly() + 1));
+
+      async function goTo(ply) {
+        if (!state) return;
+        ply = Math.max(0, Math.min(ply, livePly()));
+        try {
+          viewState = ply >= livePly() ? null : await api("/api/view", { ply });
+          showError(null);
+          render();
+        } catch (e) {
+          showError(e);
+        }
+      }
+
+      function showError(e) {
+        $("error").textContent = e ? e.message || String(e) : "";
+      }
+
+      async function play(action) {
+        if (!humanTurn()) return;
+        try {
+          state = await api("/api/move", { action });
+          showError(null);
+          render();
+          botLoop();
+        } catch (e) {
+          showError(e);
+        }
+      }
+
+      async function botLoop() {
+        const my = ++token;
+        while (
+          state &&
+          !paused &&
+          !state.terminal &&
+          !state.humans.includes(state.side)
+        ) {
+          busy = true;
+          renderPanel();
+          await new Promise((r) =>
+            setTimeout(r, state.humans.length === 0 ? 350 : 60),
+          );
+          if (my !== token) return;
+          if (paused) break;
+          try {
+            const next = await api("/api/bot", {});
+            if (my !== token) return;
+            state = next;
+          } catch (e) {
+            if (my !== token) return;
+            showError(e);
+            break;
+          }
+          busy = false;
+          render();
+        }
+        busy = false;
+        if (state) render();
+      }
+
+      function botSpec(sel, str) {
+        const v = $(sel).value,
+          n = Number($(str).value);
+        return v === "ab"
+          ? { kind: "alphabeta", time_ms: n }
+          : { kind: "net", path: v, sims: n };
+      }
+
+      function syncStrength(sel, str, label) {
+        const kind = $(sel).value === "ab" ? "ab" : "net";
+        $(label).textContent =
+          kind === "net" ? "Simulations per move" : "Time per move (ms)";
+        if ($(str).dataset.kind !== kind) {
+          $(str).value = kind === "net" ? defaultSims : 1000;
+          $(str).dataset.kind = kind;
+        }
+      }
+
+      function updateForm() {
+        const mode = $("mode").value,
+          bots = mode === "bots",
+          hotseat = mode === "hotseat";
+        $("bot2-wrap").hidden = !bots;
+        $("bot-label").textContent = bots ? "Blue bot" : "Opponent";
+        syncStrength("bot", "strength", "strength-label");
+        syncStrength("bot2", "strength2", "strength2-label");
+        const active = hotseat ? [] : bots ? ["bot", "bot2"] : ["bot"];
+        const boards = active
+          .map((id) => nets.find((n) => n.path === $(id).value))
+          .filter(Boolean)
+          .map((n) => n.board);
+        const fixed = boards[0];
+        for (const id of ["width", "height", "walls"]) $(id).disabled = !!fixed;
+        if (fixed)
+          [$("width").value, $("height").value, $("walls").value] = fixed;
+        showError(
+          boards.some((b) => b.join() !== fixed.join())
+            ? new Error("These two nets were trained on different boards.")
+            : null,
+        );
+        $("bot").disabled = $("strength").disabled = hotseat;
+      }
+
+      async function newGame() {
+        token++;
+        busy = false;
+        paused = false;
+        viewState = null;
+        drawn = null;
+        $("inspect").hidden = true;
+        const mode = $("mode").value;
+        const bots =
+          mode === "bots"
+            ? [botSpec("bot", "strength"), botSpec("bot2", "strength2")]
+            : mode === "hotseat"
+              ? [null, null]
+              : mode === "0"
+                ? [null, botSpec("bot", "strength")]
+                : [botSpec("bot", "strength"), null];
+        try {
+          state = await api("/api/new", {
+            bots,
+            width: Number($("width").value),
+            height: Number($("height").value),
+            walls: Number($("walls").value),
+          });
+          flipped = mode === "1";
+          showError(null);
+          render();
+          botLoop();
+        } catch (e) {
+          showError(e);
+        }
+      }
+
+      $("new").addEventListener("click", newGame);
+      $("undo").addEventListener("click", async () => {
+        token++;
+        busy = false;
+        viewState = null;
+        try {
+          state = await api("/api/undo", {});
+          render();
+          botLoop();
+        } catch (e) {
+          showError(e);
+        }
+      });
+      $("resign").addEventListener("click", async () => {
+        token++;
+        busy = false;
+        viewState = null;
+        try {
+          state = await api("/api/resign", {});
+          showError(null);
+          render();
+        } catch (e) {
+          showError(e);
+        }
+      });
+      $("flip").addEventListener("click", () => {
+        flipped = !flipped;
+        render();
+      });
+      $("pause").addEventListener("click", () => {
+        paused = !paused;
+        renderPanel();
+        if (!paused) botLoop();
+      });
+      $("inspect-btn").addEventListener("click", async () => {
+        inspecting = true;
+        renderPanel();
+        $("inspect").hidden = false;
+        $("inspect-caption").textContent = "Analysing…";
+        try {
+          const r = await api(
+            "/api/explain",
+            viewState ? { ply: viewState.view } : {},
+          );
+          $("inspect-img").src = `data:image/png;base64,${r.image}`;
+          $("inspect-caption").textContent =
+            `Move ${cur().ply + 1}: ${r.note}, ${netLabel(r.net)}`;
+          showError(null);
+        } catch (e) {
+          $("inspect").hidden = true;
+          showError(e);
+        }
+        inspecting = false;
+        renderPanel();
+        $("inspect").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      $("inspect-close").addEventListener("click", () => {
+        $("inspect").hidden = true;
+      });
+      $("mode").addEventListener("change", updateForm);
+      $("bot").addEventListener("change", updateForm);
+      $("bot2").addEventListener("change", updateForm);
+
+      async function init() {
+        const config = await api("/api/config");
+        nets = config.nets;
+        for (const id of ["bot", "bot2"]) {
+          const sel = $(id);
+          sel.add(new Option("Alpha-beta search (any board)", "ab"));
+          for (const n of nets)
+            sel.add(
+              new Option(
+                `Net ${netLabel(n.path)} (${n.board[0]}x${n.board[1]}, ${n.board[2]} walls)`,
+                n.path,
+              ),
+            );
+        }
+        const best = config.best;
+        defaultSims = config.sims;
+        if (nets.some((n) => n.path === best))
+          $("bot").value = $("bot2").value = best;
+        updateForm();
+        state = await api("/api/state");
+        render();
+      }
+      init().catch(showError);
+    </script>
+  </body>
+</html>
