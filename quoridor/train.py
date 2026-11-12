@@ -16,7 +16,7 @@ def load_data(paths: list[str]) -> dict[str, np.ndarray]:
     boards = {tuple(int(x) for x in p["board"]) for p in parts}
     if len(boards) != 1:
         raise ValueError(f"mixed boards: {boards}")
-    keys = ["features", "mask", "action", "value", "outcome", "exact"]
+    keys = ["features", "mask", "action", "value", "exact"]
     data = {k: np.concatenate([p[k] for p in parts]) for k in keys}
     flat = np.ascontiguousarray(data["features"].reshape(len(data["features"]), -1))
     _, first = np.unique(
@@ -30,13 +30,10 @@ def load_data(paths: list[str]) -> dict[str, np.ndarray]:
     return data
 
 
-def value_target(
-    data: dict[str, np.ndarray], kind: str, outcome_weight: float
-) -> np.ndarray:
-    v = data["value"]
+def value_target(data: dict[str, np.ndarray], kind: str) -> np.ndarray:
     if kind == "exact":
-        v = np.where(np.isnan(data["exact"]), v, data["exact"])
-    return (1.0 - outcome_weight) * v + outcome_weight * data["outcome"]
+        return np.where(np.isnan(data["exact"]), data["value"], data["exact"])
+    return data["value"]
 
 
 def run_epoch(
@@ -102,12 +99,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--weight-decay", type=float, default=1e-4)
     p.add_argument("--value-weight", type=float, default=1.0)
     p.add_argument("--value-target", choices=["search", "exact"], default="search")
-    p.add_argument(
-        "--outcome-weight",
-        type=float,
-        default=0.0,
-        help="mix game outcome into the value target",
-    )
     p.add_argument("--val-frac", type=float, default=0.1)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -131,9 +122,7 @@ def main() -> None:
         "mask": torch.from_numpy(data["mask"]),
         "action": torch.from_numpy(data["action"].astype(np.int64)),
         "target": torch.from_numpy(
-            value_target(data, args.value_target, args.outcome_weight).astype(
-                np.float32
-            )
+            value_target(data, args.value_target).astype(np.float32)
         ),
         "exact": torch.from_numpy(data["exact"]),
     }

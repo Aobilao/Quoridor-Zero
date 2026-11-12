@@ -11,7 +11,6 @@ import torch.nn.functional as F
 
 from quoridor import quoridor_engine as qe
 from quoridor.agent import (
-    MAX_CONSIDERED,
     NetEvaluator,
     mirror_features,
     mirror_perm,
@@ -25,7 +24,6 @@ from quoridor.arena import (
     opening,
     play_match,
     policy_opener,
-    uniform_move,
 )
 from quoridor.model import QuoridorNet, masked_logits, save
 
@@ -79,7 +77,7 @@ def play_games(
     mcts: qe.MCTS,
     args: argparse.Namespace,
     rng: random.Random,
-    opener: Opener = uniform_move,
+    opener: Opener,
 ) -> tuple[list[Batch], int, dict[str, int]]:
     width, height, walls = evaluate.board
     started = 0
@@ -231,15 +229,15 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="run name, saved to runs/RUN",
     )
-    p.add_argument("--iters", type=int, default=20)
+    p.add_argument("--iters", type=int, default=40)
     p.add_argument("--games", type=int, default=1000, help="games per iteration")
     p.add_argument("--parallel", type=int, default=256)
     p.add_argument("--sims", type=int, default=28, help="sims per move")
-    p.add_argument("--max-considered", type=int, default=MAX_CONSIDERED)
+    p.add_argument("--max-considered", type=int, default=8)
     p.add_argument(
         "--open-plies",
         type=int,
-        default=2,
+        default=4,
         help="up to this many random plies at the start",
     )
     p.add_argument(
@@ -257,10 +255,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--open-temp",
         type=positive,
-        help="temperature for opening plies (default: random)",
+        default=3.0,
+        help="temperature for opening plies sampled from the net's policy",
     )
     p.add_argument(
-        "--buffer", type=int, default=100_000, help="replay buffer size in positions"
+        "--buffer", type=int, default=250_000, help="replay buffer size in positions"
     )
     p.add_argument(
         "--reuse",
@@ -269,22 +268,22 @@ def parse_args() -> argparse.Namespace:
         help="samples per new position",
     )
     p.add_argument("--batch", type=int, default=256)
-    p.add_argument("--lr", type=float, default=5e-4)
+    p.add_argument("--lr", type=float, default=1.5e-4)
     p.add_argument("--weight-decay", type=float, default=1e-4)
     p.add_argument("--value-weight", type=float, default=1.0)
     p.add_argument(
         "--search-value-weight",
         type=float,
-        default=0.0,
+        default=0.5,
         help="weight of search value in the value target",
     )
     p.add_argument(
         "--moves-left-weight",
         type=float,
-        default=0.0,
+        default=1.0,
         help="loss weight of the moves-left head",
     )
-    p.add_argument("--eval-every", type=int, default=2)
+    p.add_argument("--eval-every", type=int, default=0, help="0: never")
     p.add_argument("--eval-games", type=int, default=200)
     p.add_argument("--eval-sims", type=int, default=64)
     p.add_argument(
@@ -334,7 +333,9 @@ def main() -> None:
     )
     mcts = qe.MCTS(sims=args.sims, max_considered=args.max_considered, seed=args.seed)
     buffer = Buffer(args.buffer)
-    reference = NetEvaluator(args.eval_net) if args.eval_net else None
+    reference = (
+        NetEvaluator(args.eval_net) if args.eval_net and args.eval_every else None
+    )
 
     def log(line: str) -> None:
         print(line, flush=True)
@@ -344,11 +345,7 @@ def main() -> None:
     log(f"start {time.strftime('%Y-%m-%d %H:%M:%S')}  {vars(args)}")
     for it in range(1, args.iters + 1):
         t0 = time.time()
-        opener = (
-            policy_opener(evaluate, args.open_temp)
-            if args.open_temp is not None
-            else uniform_move
-        )
+        opener = policy_opener(evaluate, args.open_temp)
         batches, plies, stats = play_games(evaluate, mcts, args, rng, opener)
         t_play = time.time() - t0
         buffer.add(batches)

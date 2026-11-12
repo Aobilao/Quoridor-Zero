@@ -32,33 +32,14 @@ def mirror_features(x: torch.Tensor) -> torch.Tensor:
 
 
 class NetEvaluator:
-    def __init__(
-        self,
-        path: str,
-        device: str | None = None,
-        mirror: bool = False,
-    ) -> None:
+    def __init__(self, path: str, device: str | None = None) -> None:
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.net, ckpt = load(path, self.device)
         self.board: list[int] = ckpt["board"]
-        self.mirror = mirror
-        self.perms: dict[tuple[int, int], torch.Tensor] = {}
-
-    def perm(self, width: int, height: int) -> torch.Tensor:
-        if (width, height) not in self.perms:
-            self.perms[width, height] = torch.from_numpy(mirror_perm(width, height)).to(
-                self.device
-            )
-        return self.perms[width, height]
 
     @torch.inference_mode()
     def __call__(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        t = torch.from_numpy(x).to(self.device)
-        logits, value, _ = self.net(t)
-        if self.mirror and x.shape[3] % 2 == 1:
-            logits_m, value_m, _ = self.net(mirror_features(t))
-            logits = (logits + logits_m[:, self.perm(x.shape[3], x.shape[2])]) / 2
-            value = (value + value_m) / 2
+        logits, value, _ = self.net(torch.from_numpy(x).to(self.device))
         return logits.float().cpu().numpy(), value.float().cpu().numpy()
 
 

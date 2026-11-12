@@ -160,9 +160,6 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("net")
     p.add_argument("--opponent", help="play this net instead of alpha-beta")
-    p.add_argument(
-        "--mirror", action="store_true", help="mirror averaging for the first net only"
-    )
     p.add_argument("--games", type=int, default=100)
     p.add_argument("--sims", type=int, default=64)
     p.add_argument("--max-considered", type=int, default=MAX_CONSIDERED)
@@ -198,7 +195,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    evaluate = NetEvaluator(args.net, mirror=args.mirror)
+    evaluate = NetEvaluator(args.net)
     if args.board:
         evaluate.board = args.board
     opener = (

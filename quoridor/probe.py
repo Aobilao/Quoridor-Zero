@@ -89,9 +89,8 @@ def score(
     data: dict[str, np.ndarray],
     games: list[qe.Game],
     sims: list[int],
-    mirror: bool = False,
 ) -> str:
-    evaluate = NetEvaluator(path, mirror=mirror)
+    evaluate = NetEvaluator(path)
     x = qe.batch_features(games)
     _, values = evaluate(x)
     result = data["result"]
@@ -126,11 +125,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--sims", type=int, nargs="+", default=[1, 64])
     p.add_argument("--min-plies", type=int, default=4)
     p.add_argument("--max-plies", type=int, default=16)
-    p.add_argument(
-        "--mirror",
-        action="store_true",
-        help="average each evaluation with its left-right mirror",
-    )
     p.add_argument("--seed", type=int, default=123)
     return p.parse_args()
 
@@ -149,7 +143,7 @@ def main() -> None:
         f"mean {good.mean():.1f} of {legal.mean():.1f} legal (random move keeps win {np.mean(good / legal):.1%})"
     )
     for path in args.nets:
-        print(score(path, data, games, args.sims, args.mirror), flush=True)
+        print(score(path, data, games, args.sims), flush=True)
 
 
 if __name__ == "__main__":
