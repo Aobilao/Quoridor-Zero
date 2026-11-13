@@ -18,14 +18,16 @@ The net learned by playing against itself. It plays games with search, trains on
 
 ## Strength
 
-I tested the 9x9 bot against two public Quoridor bots I found on GitHub. Results are this bot's wins-losses:
+I tested the 9x9 bot against four public Quoridor bots I found on GitHub. Results are this bot's wins-losses from random openings, split by colour, and its two games from the standard start (as Blue / as Red):
 
-| Opponent | This bot | Random openings | Standard start |
-|---|---|---|---|
-| [SigmaQuoridor](https://github.com/bartolomeo3000/SigmaQuoridor) (AlphaZero-style, a larger net), 800 simulations | 800 simulations | 22-18 | lost both games |
-| [gorisanson/quoridor-ai](https://github.com/gorisanson/quoridor-ai), strongest level (60,000 playouts per move) | 64 simulations | 37-3 | won both games |
+| Opponent | This bot | As Blue | As Red | Standard start |
+|---|---|---|---|---|
+| [Claustrophobia](https://github.com/Plaaasma/Claustrophobia) (AlphaZero-style, Rust), 800 simulations | 800 simulations | 4-16 | 2-18 | lost / lost |
+| [SigmaQuoridor](https://github.com/bartolomeo3000/SigmaQuoridor) (AlphaZero-style, a larger net), 800 simulations | 800 simulations | 7-13 | 15-5 | lost / lost |
+| [gorisanson/quoridor-ai](https://github.com/gorisanson/quoridor-ai), strongest level (60,000 playouts per move) | 64 simulations | 18-2 | 19-1 | won / won |
+| [pavlosdais/Quoridor](https://github.com/pavlosdais/Quoridor) (alpha-beta in C, about 6 s per move) | 64 simulations | 20-0 | 20-0 | won / won |
 
-The 40 games start from 20 random two-move openings, each played once with each colour, so the bots don't repeat the same game. SigmaQuoridor is about as strong as mine, and from the standard start it won both games. Against gorisanson's bot, mine needed well under a tenth of a second per move against about 9 seconds.
+Blue moves first. The random-opening games start from 20 random two-move openings, each played once with each colour, so the bots don't repeat the same game. Claustrophobia is clearly stronger than mine. SigmaQuoridor is about as strong, and from the standard start it won both games. Compared to them, my net is small: about 0.5 million parameters (6 residual blocks of 64 channels), against roughly 2.9 million for SigmaQuoridor and 7.1 million for Claustrophobia. Against the other two, mine needed well under a tenth of a second per move against their 5 to 9 seconds.
 
 ## Setup
 
