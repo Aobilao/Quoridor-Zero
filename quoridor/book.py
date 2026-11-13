@@ -16,6 +16,11 @@ def load_book(path: str, board: list[int]) -> Book:
     return {int(h): (int(e[0]), float(e[1])) for h, e in data["positions"].items()}
 
 
+def book_sims(path: str) -> int:
+    with open(path) as f:
+        return int(json.load(f)["sims"])
+
+
 def with_book(book: Book, mover: Mover) -> Mover:
     def move(games: list[qe.Game]) -> list[int]:
         actions = [book[g.hash()][0] if g.hash() in book else -1 for g in games]
@@ -88,14 +93,10 @@ def build(args: argparse.Namespace) -> tuple[list[int], dict[int, list[float]]]:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="build an opening book"
-    )
+    p = argparse.ArgumentParser(description="build an opening book")
     p.add_argument("net")
     p.add_argument("--out", required=True)
-    p.add_argument(
-        "--plies", type=int, default=12, help="book depth in plies"
-    )
+    p.add_argument("--plies", type=int, default=12, help="book depth in plies")
     p.add_argument(
         "--replies",
         type=int,

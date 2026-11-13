@@ -13,7 +13,7 @@ import torch
 
 from quoridor import quoridor_engine as qe
 from quoridor.agent import MAX_CONSIDERED, NetEvaluator, run_search
-from quoridor.book import Book, load_book
+from quoridor.book import Book, book_sims, load_book
 from quoridor.explain import explain
 from quoridor.play import describe_score, notation
 
@@ -166,14 +166,16 @@ class App:
             self.nets[path] = ckpt["board"]
         if BEST in self.nets:
             board = self.nets[BEST]
-            bot: Bot = NetBot(BEST, self.evaluator(BEST), SIMS, self.book_for(BEST))
+            bot: Bot = NetBot(
+                BEST, self.evaluator(BEST), SIMS, self.book_for(BEST, SIMS)
+            )
         else:
             board, bot = [5, 5, 3], AlphaBetaBot(1000)
         self.session = Session(qe.Game(*board), board, [0], {1: bot})
 
-    def book_for(self, path: str) -> Book:
+    def book_for(self, path: str, sims: int) -> Book:
         full = os.path.join(ROOT, BOOK)
-        if not os.path.exists(full):
+        if not os.path.exists(full) or sims > book_sims(full):
             return {}
         try:
             return load_book(full, self.nets[path])
@@ -198,7 +200,7 @@ class App:
                 spec["path"],
                 self.evaluator(spec["path"]),
                 int(spec["sims"]),
-                self.book_for(spec["path"]),
+                self.book_for(spec["path"], int(spec["sims"])),
             )
         return AlphaBetaBot(int(spec["time_ms"]))
 
